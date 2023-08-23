@@ -39,9 +39,7 @@ class MedicoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = self.queryset
-        especialidades = self.request.query_params.getlist(
-            'especialidade')  # pega as especialidades dos params da request
-        if especialidades:
+        if especialidades := self.request.query_params.getlist('especialidade'):
             queryset = Medico.objects.filter(especialidade_id__in=especialidades)  # filtra as especialidades
 
         return queryset
@@ -55,12 +53,12 @@ class ConsultaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset().filter(user=self.request.user).order_by('agenda__dia', 'horario')
-        consultas_disponiveis = []
-        for consulta in qs:
-            if consulta.horario > datetime.datetime.now().time() or datetime.datetime.now().date() != consulta.agenda.dia:  # filtra os horarios passados
-                consultas_disponiveis.append(consulta)
-
-        return consultas_disponiveis
+        return [
+            consulta
+            for consulta in qs
+            if consulta.horario > datetime.datetime.now().time()
+            or datetime.datetime.now().date() != consulta.agenda.dia
+        ]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -50,7 +50,7 @@ class Agenda(models.Model):
         ordering = ['dia']
 
     def __str__(self):
-        return '%s - %s' % (self.medico, self.dia)
+        return f'{self.medico} - {self.dia}'
 
 class Consulta(models.Model):
     agenda = models.ForeignKey(Agenda, on_delete=models.CASCADE)

@@ -31,11 +31,12 @@ class AgendaSerializers(serializers.ModelSerializer):
     horario = serializers.SerializerMethodField()
 
     def get_horario(self, value):
-        horarios_disponiveis = []
-        for horario in value.horario.all():
-            if horario.horario > datetime.datetime.now().time() or datetime.datetime.now().date() != value.dia:  # filtra os horarios passados
-                horarios_disponiveis.append(horario.horario)
-
+        horarios_disponiveis = [
+            horario.horario
+            for horario in value.horario.all()
+            if horario.horario > datetime.datetime.now().time()
+            or datetime.datetime.now().date() != value.dia
+        ]
         for consulta in value.consulta_set.all():
             if consulta.horario in horarios_disponiveis:
                 horarios_disponiveis.remove(consulta.horario)
@@ -75,12 +76,7 @@ class ConsultasSerializers(serializers.ModelSerializer):
             raise ValidationError({'detail': 'Não é possivel marcar consultass para dias passados.'})
 
         hora = d.strptime(self.initial_data['horario'], '%H:%M').time()
-        flag = True
-        for h in agenda.horario.all():
-            if hora == h.horario:
-                flag = False
-                break
-
+        flag = all(hora != h.horario for h in agenda.horario.all())
         if flag:
             raise ValidationError({'detail': 'Esse horário não está disponivel para essa agenda.'})
 
@@ -89,9 +85,11 @@ class ConsultasSerializers(serializers.ModelSerializer):
             if hora_consulta < d.now().time():
                 raise ValidationError({'detail': 'Não é possivel marcar consultas para horários passados.'})
 
-        consulta = Consulta.objects.filter(user=self.context['request'].user, horario=self.initial_data['horario'],
-                                           agenda__dia=agenda.dia)
-        if consulta:
+        if consulta := Consulta.objects.filter(
+            user=self.context['request'].user,
+            horario=self.initial_data['horario'],
+            agenda__dia=agenda.dia,
+        ):
             raise ValidationError({'detail': 'Você já possui uma consulta neste dia e também neste horário.'})
 
         if consultas:
@@ -143,7 +141,7 @@ class CreateSerializers(serializers.ModelSerializer):
         user = User(**data)
 
         password = attrs.get('password')
-        errors = dict()
+        errors = {}
         try:
             # validate the password and catch the exception
             password_validation.validate_password(password=password, user=User)
